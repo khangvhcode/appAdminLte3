@@ -1,62 +1,62 @@
 import React, {useState} from 'react';
-import {useDispatch} from 'react-redux';
 import {Link, useNavigate} from 'react-router-dom';
+import {useDispatch} from 'react-redux';
 import {toast} from 'react-toastify';
 import {useFormik} from 'formik';
 import {useTranslation} from 'react-i18next';
+import * as Yup from 'yup';
 import {loginUser} from '@store/reducers/auth';
 import {setWindowClass} from '@app/utils/helpers';
+import {Form, InputGroup} from 'react-bootstrap';
 import {PfButton, PfCheckbox} from '@profabric/react-components';
 
-import * as Yup from 'yup';
-
-import {Form, InputGroup} from 'react-bootstrap';
 import * as AuthService from '../../services/auth';
 
-const Login = () => {
+const Register = () => {
   const [isAuthLoading, setAuthLoading] = useState(false);
   const [isGoogleAuthLoading, setGoogleAuthLoading] = useState(false);
   const [isFacebookAuthLoading, setFacebookAuthLoading] = useState(false);
+  const [t] = useTranslation();
   const dispatch = useDispatch();
 
   const navigate = useNavigate();
-  const [t] = useTranslation();
 
-  const login = async (email: string, password: string) => {
+  const register = async (email: string, password: string) => {
     try {
       setAuthLoading(true);
-      // const token = await AuthService.loginByAuth(email, password);
-      // toast.success('Login is succeed!');
-      // setAuthLoading(false);
-      // dispatch(loginUser(token));
+      const token = await AuthService.registerByAuth(email, password);
+      setAuthLoading(false);
+      dispatch(loginUser(token));
+      toast.success('Registration is success');
       navigate('/');
     } catch (error: any) {
-      setAuthLoading(false);
       toast.error(error.message || 'Failed');
+      setAuthLoading(false);
     }
   };
 
-  const loginByGoogle = async () => {
+  const registerByGoogle = async () => {
     try {
       setGoogleAuthLoading(true);
-      const token = await AuthService.loginByGoogle();
-      toast.success('Login is succeeded!');
+      const token = await AuthService.registerByGoogle();
       setGoogleAuthLoading(false);
       dispatch(loginUser(token));
+      toast.success('Authentication is succeed!');
       navigate('/');
     } catch (error: any) {
-      setGoogleAuthLoading(false);
       toast.error(error.message || 'Failed');
+      setGoogleAuthLoading(false);
     }
   };
 
-  const loginByFacebook = async () => {
+  const registerByFacebook = async () => {
     try {
       setFacebookAuthLoading(true);
-      const token = await AuthService.loginByFacebook();
-      toast.success('Login is succeeded!');
+
+      const token = await AuthService.registerByFacebook();
       setFacebookAuthLoading(false);
       dispatch(loginUser(token));
+      toast.success('Register is succeeded!');
       navigate('/');
     } catch (error: any) {
       setFacebookAuthLoading(false);
@@ -67,24 +67,36 @@ const Login = () => {
   const {handleChange, values, handleSubmit, touched, errors} = useFormik({
     initialValues: {
       email: '',
-      password: ''
+      password: '',
+      passwordRetype: ''
     },
     validationSchema: Yup.object({
       email: Yup.string().email('Invalid email address').required('Required'),
       password: Yup.string()
         .min(5, 'Must be 5 characters or more')
         .max(30, 'Must be 30 characters or less')
+        .required('Required'),
+      passwordRetype: Yup.string()
+        .min(5, 'Must be 5 characters or more')
+        .max(30, 'Must be 30 characters or less')
         .required('Required')
+        .when('password', {
+          is: (val: string) => !!(val && val.length > 0),
+          then: Yup.string().oneOf(
+            [Yup.ref('password')],
+            'Both password need to be the same'
+          )
+        })
     }),
     onSubmit: (values) => {
-      login(values.email, values.password);
+      register(values.email, values.password);
     }
   });
 
-  setWindowClass('hold-transition login-page');
+  setWindowClass('hold-transition register-page');
 
   return (
-    <div className="login-box">
+    <div className="register-box">
       <div className="card card-outline card-primary">
         <div className="card-header text-center">
           <Link to="/" className="h1">
@@ -93,7 +105,7 @@ const Login = () => {
           </Link>
         </div>
         <div className="card-body">
-          <p className="login-box-msg">{t<string>('login.label.signIn')}</p>
+          <p className="login-box-msg">{t<string>('register.registerNew')}</p>
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
               <InputGroup className="mb-3">
@@ -146,62 +158,83 @@ const Login = () => {
               </InputGroup>
             </div>
 
+            <div className="mb-3">
+              <InputGroup className="mb-3">
+                <Form.Control
+                  id="passwordRetype"
+                  name="passwordRetype"
+                  type="password"
+                  placeholder="Retype password"
+                  onChange={handleChange}
+                  value={values.passwordRetype}
+                  isValid={touched.passwordRetype && !errors.passwordRetype}
+                  isInvalid={touched.passwordRetype && !!errors.passwordRetype}
+                />
+
+                {touched.passwordRetype && errors.passwordRetype ? (
+                  <Form.Control.Feedback type="invalid">
+                    {errors.passwordRetype}
+                  </Form.Control.Feedback>
+                ) : (
+                  <InputGroup.Append>
+                    <InputGroup.Text>
+                      <i className="fas fa-lock" />
+                    </InputGroup.Text>
+                  </InputGroup.Append>
+                )}
+              </InputGroup>
+            </div>
+
             <div className="row">
-              <div className="col-8">
+              <div className="col-7">
                 <PfCheckbox checked={false}>
-                  {t<string>('login.label.rememberMe')}
+                  <span>I agree to the </span>
+                  <Link to="/">terms</Link>
                 </PfCheckbox>
               </div>
-              <div className="col-4">
+              <div className="col-5">
                 <PfButton
-                  block
                   type="submit"
+                  block
                   loading={isAuthLoading}
                   disabled={isFacebookAuthLoading || isGoogleAuthLoading}
                 >
-                  {t<string>('login.button.signIn.label')}
+                  {t<string>('register.label')}
                 </PfButton>
               </div>
             </div>
           </form>
-          <div className="social-auth-links text-center mt-2 mb-3">
+          <div className="social-auth-links text-center">
             <PfButton
-              block
               className="mb-2"
-              onClick={loginByFacebook}
+              block
+              onClick={registerByFacebook}
               loading={isFacebookAuthLoading}
               disabled={isAuthLoading || isGoogleAuthLoading}
             >
               <i className="fab fa-facebook mr-2" />
-              {t<string>('login.button.signIn.social', {
+              {t<string>('login.button.signUp.social', {
                 what: 'Facebook'
               })}
             </PfButton>
             <PfButton
               block
               theme="danger"
-              onClick={loginByGoogle}
+              onClick={registerByGoogle}
               loading={isGoogleAuthLoading}
               disabled={isAuthLoading || isFacebookAuthLoading}
             >
               <i className="fab fa-google mr-2" />
-              {t<string>('login.button.signIn.social', {what: 'Google'})}
+              {t<string>('login.button.signUp.social', {what: 'Google'})}
             </PfButton>
           </div>
-          <p className="mb-1">
-            <Link to="/forgot-password">
-              {t<string>('login.label.forgotPass')}
-            </Link>
-          </p>
-          <p className="mb-0">
-            <Link to="/register" className="text-center">
-              {t<string>('login.label.registerNew')}
-            </Link>
-          </p>
+          <Link to="/login" className="text-center">
+            {t<string>('register.alreadyHave')}
+          </Link>
         </div>
       </div>
     </div>
   );
 };
 
-export default Login;
+export default Register;
